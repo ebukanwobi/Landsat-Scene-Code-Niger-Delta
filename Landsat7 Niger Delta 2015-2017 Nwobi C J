@@ -1,0 +1,60 @@
+// Load a raw Landsat 7 ImageCollection for a single year.
+var l7nd = ee.ImageCollection('LANDSAT/LE07/C01/T1')
+    .filterDate('2015-01-01', '2017-12-31').filterBounds(nigerdelta);
+
+print(l7nd)
+// Create a cloud-free composite with default parameters.
+var l7ndcomposite = ee.Algorithms.Landsat.simpleComposite(l7nd);
+
+// Create a cloud-free composite with custom parameters for
+// cloud score threshold and percentile.
+var l7ndcustomComposite = ee.Algorithms.Landsat.simpleComposite({
+  collection: l7nd,
+  percentile: 75,
+  cloudScoreRange: 5
+});
+
+print(l7ndcustomComposite);
+// Display the composites.
+Map.centerObject(nigerdelta, 8);
+Map.addLayer(l7ndcomposite, {bands: ['B4', 'B3', 'B2'], max: 128}, 'TOA composite');
+Map.addLayer(l7ndcustomComposite, {bands: ['B4', 'B3', 'B2'], max: 128},'Custom TOA composite',false);
+      
+print(l7ndcomposite)
+
+var getCloudScores= function(img){
+  var value = ee.Image(img).get('CLOUD_COVER');
+    return ee.Feature(null, {'score': value})
+};
+
+var results1 = l7nd.map(getCloudScores);
+print(Chart.feature.byFeature(results1));
+
+var results2 = l7ndcomposite.map(getCloudScores);
+print(Chart.feature.byFeature(results2));
+
+// Export the image, specifying scale and region.
+Export.image.toDrive({
+  image: l7ndcomposite,
+  description: 'NigerdeltaLandsat',
+  scale: 30,
+  maxPixels:1e13,
+  region: nigerdelta,
+  fileFormat: 'GeoTIFF',
+  formatOptions: {
+    cloudOptimized: true
+  }
+  });
+  
+  // Export the image, specifying scale and region.
+Export.image.toDrive({
+  image: l7ndcustomComposite,
+  description: 'NigerdeltaLandsatCustom',
+  scale: 30,
+  maxPixels:1e13,
+  region: nigerdelta,
+  fileFormat: 'GeoTIFF',
+  formatOptions: {
+    cloudOptimized: true
+  }
+  });
